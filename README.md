@@ -9,7 +9,9 @@ This guide has been written to provide an overview of the tools, practices, guid
 * Discuss possible solutions on problems identified during the design and implementation proccess.
 # Open Glossary of Edge Computing
 
-The Linux Foundation's Open Glossary of Edge Computing project curates and defines terms related to the field of edge computing, collecting common and accepted definitions into an openly licensed repository. The Open Glossary project leverages a diverse community of contributors to collaborate on a shared lexicon, offering an organization- and vendor-neutral platform for advancing a common understanding of edge computing and the next generation Internet.
+The Linux Foundation's Open Glossary of Edge Computing project curates and defines terms related to the field of edge computing, collecting common and accepted definitions into an openly licensed repository. 
+
+The Open Glossary project leverages a diverse community of contributors to collaborate on a shared lexicon, offering an organization- and vendor-neutral platform for advancing a common understanding of edge computing and the next generation Internet.
 
 [Open Glossary of Edge Computing](https://github.com/lf-edge/glossary/blob/master/PDFs/OpenGlossaryofEdgeComputing_2019_v2.0.pdf)
 # Multi-access Edge Computing Platform
@@ -77,7 +79,7 @@ https://www.etsi.org/deliver/etsi_gs/MEC/001_099/01002/01.01.01_60/gs_MEC01002v0
 
 # 2. ETSI NFV Compliant MANO Orchestrators and possible candidates for ETSI MEC
 
-## 2.1 TACKER 
+## 2.1 Tacker 
 
 
 Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI NFV specification. At the input it consumes Tosca-based templates, converts them to Heat templates which are then used to spin up VMs on OpenStack.
@@ -85,16 +87,20 @@ Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI 
 
 ![](https://i.imgur.com/AvQyQm3.jpg)
 ---
+![](https://i.imgur.com/gqF72gK.png)
+---
 **<center>Architecture</center>**
 ![](https://i.imgur.com/ulGSmou.png)
 ---
-![](https://i.imgur.com/gqF72gK.png)
----
+
 ![](https://i.imgur.com/B5Ff203.png)
 ---
 **<center>In detail</center>**
 ![](https://i.imgur.com/EbC5YdL.png)
 ---
+
+![](https://i.imgur.com/Rm0wZEn.png)
+
 
 :::success
 
@@ -108,7 +114,7 @@ https://wiki.openstack.org/wiki/Tacker
 :::
 
 
-![](https://i.imgur.com/Rm0wZEn.png)
+## Tacker Components
 
 | Components  | Description |
 | -------- | -------- |
@@ -156,20 +162,20 @@ flavor: { get_param: instance_type }
 ```
 
 
+
+                   
+**Other Tacker features**
+
+* VNF monitoring - through monitoring driver its possible to do VNF monitoring from VNFM using various methods ranging from a single ICMP/HTTP ping to Alarm-based monitoring using OpenStack’s Telemetry framework
+* Enhanced Placement Awareness - VNFD Tosca template extensions that allow the definition of required performance features like NUMA topology mapping, SR-IOV and CPU pinning.
+* Mistral workflows - ability to drive Tacker workflows through Mistral
+
 ### Tacker Documentation
 |  | |
 | -------- | -------- |
 |Installation Guide |https://docs.openstack.org/tacker/latest/user/index.html |
 |User Guide for VNF’s |https://docs.openstack.org/tacker/latest/user/index.html | 
 |Source Code: 		|https://opendev.org/openstack/tacker.git https://github1s.com/openstack/tacker (with VSCode Integration) |
-                    
-                    
-                    
-**Other Tacker features**
-
-* VNF monitoring - through monitoring driver its possible to do VNF monitoring from VNFM using various methods ranging from a single ICMP/HTTP ping to Alarm-based monitoring using OpenStack’s Telemetry framework
-* Enhanced Placement Awareness - VNFD Tosca template extensions that allow the definition of required performance features like NUMA topology mapping, SR-IOV and CPU pinning.
-* Mistral workflows - ability to drive Tacker workflows through Mistral
 
 
 ## 2.2  Opensourse MANO
@@ -180,6 +186,10 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 **<center>Architecture:</center>**
 ![](https://i.imgur.com/DXrWrKI.png)
 ---
+![](https://i.imgur.com/tn4FvLm.png)
+---
+![](https://i.imgur.com/oMjT3yt.png)
+---
 ![](https://i.imgur.com/FueHLhO.png)
 ---
 **<center>Deployment phase of Network Service</center>**
@@ -189,7 +199,7 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 ![](https://i.imgur.com/4nSBWjU.png)
 ---
 
-## Opensource MANO components
+## 2.2.1 Opensource MANO components
 
 ```
      __________                                                              ________
@@ -328,7 +338,7 @@ The RO code contains a python CLI (openmano) that allows friendly command execut
 https://osm.etsi.org/wikipub/index.php/OSM_client
 ```
 
-### VNF Configuration and Abstraction (VCA)
+### VNF Configuration and Abstraction Module (VCA)
 
 VCA module performs the initial VNF configuration using Juju Charms. Considering this purpose, the VCA module can be considered as a generic VNFM with a limited feature set.
 
@@ -387,7 +397,10 @@ Lifecycle operations supported are:
 |Source Code |https://github.com/openbaton/bootstrap/|
 
 
-## 2.4  ONAP 
+## 2.4  ONAP
+
+![](https://i.imgur.com/RGNbwYw.png)
+
 
 ### TODO
 
@@ -399,7 +412,7 @@ Lifecycle operations supported are:
 |Apache 2.0 license |y |y |y |
 |Release | Wallaby | 9.0 | 6.0 |
 |Prog Lang | python| python  | java- go/python (ext) |
-|Mature | | y  | |
+|Mature | | y  | | y|
 |ETSI NVFMANO Compliant | y | y |
 |multi-node | | y | |
 |NFVO | y| y | y | y | y |
@@ -409,8 +422,8 @@ Lifecycle operations supported are:
 |OpenStack | y | y | y | y |
 |Multiple OpenStack | y | y | y |
 |Other VIM | y | y | y |
-|TOSCA | y | | |
-|Yang | | | | y |
+|TOSCA | y | | |y |
+|Yang | | y | | y |
 |Dashboard | y | y | y | y
 |Service Orchestrator | | LCM  | |
 
@@ -422,10 +435,15 @@ https://sdn.ieee.org/home/sitemap/22-newsletter/july-2016/59-opensource-mano
 As part of the MANO selection process, we must consider a number of important factors:
 
 * NFVO/MEO
-* ViM Support 
+* ViM Support (k8s, Openstack)
+* VNFM and LCM  Mechanism
+* Messaging Protocol 
+* Networking/CNI Compatibility
+* TOSCA or YAML for VNFd
+* SFC
 * Product or project maturity
-* Hardware concerns
-* Additional  features 
+* Hardware concerns & requirments
+* Additional  features useful for MEC
 * Community 
 
 # 3. Virtual Infastructure Managers
