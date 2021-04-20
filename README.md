@@ -1,4 +1,22 @@
+# Purpose of this document
+  
+This guide has been written to provide an overview of the tools, practices, guidelines, and recommendations and a single source of truth for the development of an E2E  Orchestrator for MEC. 
+
+**Objectives**
+
+* Identify the features needed.
+* Highlight open source tools used, their usage in MEC Orchestrator and what problems solve.
+* Discuss possible solutions on problems identified during the design and implementation proccess.
+# Open Glossary of Edge Computing
+
+The Linux Foundation's Open Glossary of Edge Computing project curates and defines terms related to the field of edge computing, collecting common and accepted definitions into an openly licensed repository. The Open Glossary project leverages a diverse community of contributors to collaborate on a shared lexicon, offering an organization- and vendor-neutral platform for advancing a common understanding of edge computing and the next generation Internet.
+
+[Open Glossary of Edge Computing](https://github.com/lf-edge/glossary/blob/master/PDFs/OpenGlossaryofEdgeComputing_2019_v2.0.pdf)
 # Multi-access Edge Computing Platform
+
+An open application framework sponsored by ETSI to support the development of services tightly coupled with the Radio Access Network (RAN). Formalized in 2014, MEC seeks to augment 4G and 5G wireless base stations with a standardized software platform, API and programming model for building and deploying applications at the edge of the wireless networks. MEC allows for the deployment of services such as radio-aware video optimization, which utilizes caching, buffering and real-time transcoding to reduce congestion of the cellular network and improve the user experience. Originally known as Mobile Edge Computing, the ETSI working group renamed itself to Multi-Access Edge Computing in 2016 in order to acknowledge their ambition to expand MEC beyond cellular to include other access technologies. Utilizes edge data centers deployed at the infrastructure edge.
+
+
 # 1. MEC Architecture 
 
 ![](https://www.mdpi.com/electronics/electronics-09-01392/article_deploy/html/images/electronics-09-01392-g001.png)
@@ -15,12 +33,21 @@
 ## 2.1 TACKER 
 
 
-Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI NFV specification. At the input it consumes Tosca-based templates, converts them to Heat templates which are then used to spin up VMs on OpenStack
+Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI NFV specification. At the input it consumes Tosca-based templates, converts them to Heat templates which are then used to spin up VMs on OpenStack.
 
-**<center>Architecture:</center>**
+
+![](https://i.imgur.com/AvQyQm3.jpg)
+---
+**<center>Architecture</center>**
 ![](https://i.imgur.com/ulGSmou.png)
+---
+![](https://i.imgur.com/gqF72gK.png)
+---
 
- 
+**<center>In detail</center>**
+![](https://i.imgur.com/EbC5YdL.png)
+---
+
 :::success
 
 https://docs.openstack.org/tacker/latest/user/architecture.html 
@@ -31,9 +58,7 @@ https://wiki.openstack.org/wiki/Tacker
 
 ![](https://i.imgur.com/Rm0wZEn.png)
 
-
-
-| Components  | |
+| Components  | Description |
 | -------- | -------- |
 | tacker-client | provides CLI and communication with Tacker via REST API |
 | server | provides REST API and calls conductor via RPC. |
@@ -46,11 +71,45 @@ https://wiki.openstack.org/wiki/Tacker
 
 ![](https://i.imgur.com/S3XQIyT.png)
 
+**TOSCA Simple Profile for Network Functions Virtualization**
 
-Installation Guide: https://docs.openstack.org/tacker/latest/user/index.html 
-User Guide for VNF’s: 	https://docs.openstack.org/tacker/latest/user/index.html 
-Source Code: 		https://opendev.org/openstack/tacker.git 
-                    https://github1s.com/openstack/tacker(with VSCode Integration) 
+Tacker uses a private YAML format for VNFD templates that bears a passing resemblance to TOSCA but has custom tags and far fewer capabilities. Tacker also does it’s own translation of the VNFD into a Heat template, which requires maintenance and has far fewer capabilities than other existing projects.
+
+**Heat Template**
+
+```yaml=
+description: Simple template to deploy a single compute instance
+
+parameters:
+key_name:
+type: string
+label: Key Name
+description: Name of key-pair to be used for compute instance
+image_id:
+type: string
+label: Image ID
+description: Image to be used for compute instance
+instance_type:
+type: string
+label: Instance Type
+description: Type of instance (flavor) to be used
+
+resources:
+my_instance:
+type: OS::Nova::Server
+properties:
+key_name: { get_param: key_name }
+image: { get_param: image_id }
+flavor: { get_param: instance_type }
+```
+
+
+
+|  | |
+| -------- | -------- |
+|Installation Guide |https://docs.openstack.org/tacker/latest/user/index.html |
+|User Guide for VNF’s |https://docs.openstack.org/tacker/latest/user/index.html | 
+|Source Code: 		|https://opendev.org/openstack/tacker.git https://github1s.com/openstack/tacker (with VSCode Integration) |
                     
                     
                     
@@ -68,22 +127,29 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 
 **<center>Architecture:</center>**
 ![](https://i.imgur.com/DXrWrKI.png)
-
+---
 ![](https://i.imgur.com/FueHLhO.png)
-
-
+---
+**<center>Deployment phase of Network Service</center>**
+![](https://i.imgur.com/sK0D3Ew.png)
+---
+**<center>OSM Workflow</center>**
+![](https://i.imgur.com/4nSBWjU.png)
 
 :::success
 
-https://osm.etsi.org/docs/user-guide/02-osm-architecture-and-functions.html 
-https://osm-download.etsi.org/ftp/Documentation/201902-osm-scope-white-paper/#!00-introduction.md 
-https://osm.etsi.org/docs/developer-guide/02-developer-how-to.html 
+* https://osm.etsi.org/docs/user-guide/02-osm-architecture-and-functions.html 
+* https://osm-download.etsi.org/ftp/Documentation/201902-osm-scope-white-paper/#!00-introduction.md 
+* https://osm.etsi.org/docs/developer-guide/02-developer-how-to.html 
 
 :::
 
-* Installation Guide: 	https://osm.etsi.org/docs/user-guide/03-installing-osm.html 
-* User Guide for VNF’s: 	https://osm.etsi.org/docs/vnf-onboarding-guidelines/ 
-* Source Code: 		https://osm-download.etsi.org/repository/osm/debian/ReleaseNINE/dists/stable/ 
+
+|  |  |
+| -------- | -------- |
+|Installation Guide | https://osm.etsi.org/docs/user-guide/03-installing-osm.html |
+|User Guide for VNF’s | https://osm.etsi.org/docs/vnf-onboarding-guidelines/ |
+|Source Code |https://osm-download.etsi.org/repository/osm/debian/ReleaseNINE/dists/stable/ |
 
 ## 2.3  Openbaton
 
@@ -121,6 +187,14 @@ https://osm.etsi.org/docs/developer-guide/02-developer-how-to.html
 |Dashboard | y | y | y | y
 |Service Orchestrator | | LCM  | |
 
+## 2.6 MANO Selection criteria
+As part of the MANO selection process, we must consider a number of important factors:
+
+* Common criteria
+* Product or project maturity
+* Hardware concerns
+* Additional  features 
+* Community 
 
 # 3. Virtual Infastructure Managers
 
@@ -135,21 +209,15 @@ https://osm.etsi.org/docs/developer-guide/02-developer-how-to.html
 
 ## 3.1 Openstack
 
-**Deployment & Lifecycle Methods**
-
-![](https://i.imgur.com/KbD0ppn.png)
-
-
-**Openstack Modules**
+### Openstack Modules
 ![](https://i.imgur.com/Vbk1C3c.png)
-
-
-## Vanilla Openstack Production Requirements
-
 ---
 ### <center>Architecture</center>
 
-![](https://i.imgur.com/F7qwI5E.png)
+![](https://i.imgur.com/6ZRGhXw.png)
+---
+### <center>Networking Layer</center>
+![](https://i.imgur.com/VyVmQEM.png)
 
 **Controller**
 The controller node runs the Identity service, Image service, Placement service, management portions of Compute, management portion of Networking, various Networking agents, and the Dashboard. It also includes supporting services such as an SQL database, message queue, and NTP.
@@ -161,15 +229,27 @@ The compute node runs the hypervisor portion of Compute that operates instances.
 **Block Storage**
 The optional Block Storage node contains the disks that the Block Storage and Shared File System services provision for instances.
 
-For simplicity, service traffic between compute nodes and this node uses the management network. Production environments should implement a separate storage network to increase performance and security.
+For simplicity, service traffic between compute nodes and this node uses the management network. Production environments should implement a separate storage network to increase performance and security like CEPH.
 
 **Object Storage**
 The optional Object Storage node contain the disks that the Object Storage service uses for storing accounts, containers, and objects.
 
+
+### Deployment & Lifecycle Methods
+
+![](https://i.imgur.com/KbD0ppn.png)
+
+
+### Openstack Production Requirements
+
+---
+
+
+![](https://i.imgur.com/F7qwI5E.png)
 ---
  
 :::danger
-Problem: But we need many of them !!! WHY ??
+Problem: But we need many of them with Centralized Management !!! WHY ??
 :::
 # 4. Openstack on the EDGE (scenarios)
 
@@ -296,7 +376,7 @@ Airship and Rancher can deploy Openstack Helm and K8s on demand
 
 ### Integrating OpenStack, Kubernetes and Ceph(storage backend)
 
-StarlingX is a fully integrated, open source platform that is supported by the Open Infrastructure Foundation. The project integrates together open source projects such as Ceph, Kubernetes, the Linux kernel, OpenStack
+StarlingX is an open source, complete cloud infrastructure software stack for the edge used by the most demanding applications in industrial IoT, telecom, and other use cases. The platform creates a fusion between OpenStack and Kubernetes to provide a robust and flexible environment for all kinds of workloads, let them be containerized, virtualized or bare metal. The project integrates together open source projects such as Ceph, Kubernetes, the Linux kernel, OpenStack.
 
 
 ### <center>Architecture</center>
@@ -345,6 +425,7 @@ In the Horizon GUI, System Controller is the name of the access mode, or region,
 * DNS, NTP, and other configuration settings are centrally managed at the System Controller and pushed to the subclouds in parallel to maintain synchronization across the distributed cloud infrastructure.
 
 ***Edge Subclouds***
+
 The subclouds are StarlingX Kubernetes edge systems/clusters used to host containerized applications: 
 
 * Alarms raised at the subclouds are sent to the System Controller for central reporting. Any type of StarlingX Kubernetes configuration, (including single-server, dual-redundant servers, or standard cluster with or without storage nodes), can be used for a subcloud. 
@@ -352,6 +433,90 @@ The subclouds are StarlingX Kubernetes edge systems/clusters used to host contai
 * Remote nodes can survive isolation from the control plane and continue to operate and re-synchronize upon reconnection. All control functions can exist at all sites. 
 
 * Remote sites can be zero-touch enrolled and replicated across thousands of sites with fully automated deployment of known-good configurations.
+
+
+#### Key concepts and terminology
+
+
+**All-in-one Controller Node**
+
+A single physical node that provides a controller function, worker function, and storage function.
+
+**Bare Metal**
+
+A node running without hypervisors (for example, application workloads run directly on the operating system which runs directly on the hardware).
+
+**Worker**
+
+A node within a StarlingX edge cloud that is dedicated to running application workloads. There can be 0 to 99 worker nodes in a StarlingX edge cloud.
+
+- Runs virtual switch for realizing virtual networks.
+
+- Provides L3 routing and NET services.
+
+- In a configuration running OpenStack, a worker node is labeled as ‘compute’ and may be referred to as a compute node.
+
+**Controller**
+
+A node within a StarlingX edge cloud that runs the cloud management software (control plane). There can be either one or two controller nodes in a StarlingX edge cloud.
+
+- Runs cloud control functions for managing cloud resources.
+- Runs all OpenStack control functions, such as managing images, virtual volumes, virtual network, and virtual machines.
+- Can be part of a two-node HA control node cluster for running control functions either active/active or active/standby.
+
+
+**Storage**
+
+A node within a StarlingX edge cloud that is dedicated to providing file and object storage to application workloads. There can be 0 or more storage nodes within a StarlingX edge cloud.
+
+* Runs CEPH distributed storage software.
+* Part of an HA multi-node CEPH storage cluster supporting a replication factor of two or three, journal caching, and class tiering.
+* Provides HA persistent storage for images, virtual volumes (that is, block storage), and object storage.
+
+**Kubernetes Cluster**
+
+A set of machines that has a common control plane for running orchestrated applications.
+
+**Data Network(s)**
+
+Networks on which the OpenStack / Neutron provider networks are realized and become the VM tenant networks.
+
+Only worker-type and all-in-one-type nodes are required to be connected to the data network(s). These node types require one or more interface(s) on the data network(s).
+
+
+**IPMI Network**
+An optional network on which Intelligent Platform Management Interface (IPMI) interfaces of all nodes are connected. The network must be reachable using L3/IP from the controller’s OAM interfaces.
+
+You can optionally connect all node types to the IPMI network.
+
+**Management Network**
+A private network (that is, not connected externally), typically 10GE, used for the following:
+
+* Internal OpenStack / StarlingX monitoring and control.
+* VM I/O access to a storage cluster. 
+* All nodes are required to be connected to the management network.
+
+**OAM Network**
+
+The network on which all external StarlingX platform APIs are exposed, (that is, REST APIs, Horizon web server, SSH, and SNMP), typically 1GE.
+
+Only controller type nodes are required to be connected to the OAM network.
+
+**PXEBoot Network**
+
+An optional network for controllers to boot/install other nodes over the network.
+
+By default, controllers use the management network for boot/install of other nodes in the OpenStack cloud. If this optional network is used, all node types are required to be connected to the PXEBoot network.
+
+A PXEBoot network is required for a variety of special case situations:
+
+Cases where the management network must be IPv6:
+
+* IPv6 does not support PXEBoot. Therefore, you must configure an IPv4 PXEBoot network.
+* Cases where the management network must be VLAN tagged:
+* Most server’s BIOS do not support PXEBooting over tagged networks. Therefore, you must configure an untagged PXEBoot network. 
+* Cases where a management network must be shared across regions but individual regions’ controllers want to only network boot/install nodes of their own region:
+    * You must configure separate, per-region PXEBoot networks.
 
 **STARLINGX DEPLOYMENT MODELS**
 
@@ -400,7 +565,7 @@ We can accomplish that with Airship or Gardener
 
 ## Lifecycle Management Module
 ## Workflow Module 
-- Argo Workflows
+- Argo Workflows & Events
 - Mistral Openstack Module
 
 ## Live Migration Management (LMM) and State Management (SM)
@@ -766,5 +931,8 @@ TOSCA is designed to facilitate the ‘portability’ and ‘lifecycle managemen
 15. https://thenewstack.io/de-ossify-the-network-with-function-virtualization/
 16. https://thenewstack.io/opensource-nfv-part-4-opensource-mano/
 17. https://sdn.ieee.org/home/sitemap/22-newsletter/july-2016/59-opensource-mano
+18. https://docs.openstack.org/security-guide/
+19. https://www.slideshare.net/TrinathSomanchi/demystifying-openstack-for-nfv
+20. https://object-storage-ca-ymq-1.vexxhost.net/swift/v1/6e4619c416ff4bd19e1c087f27a43eea/www-assets-prod/presentation-media/Build-your-serverless-container-cloud-with-OpenStack-and-Kubernetes3.pdf
 
 
