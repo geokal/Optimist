@@ -43,7 +43,8 @@ Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI 
 ---
 ![](https://i.imgur.com/gqF72gK.png)
 ---
-
+![](https://i.imgur.com/B5Ff203.png)
+---
 **<center>In detail</center>**
 ![](https://i.imgur.com/EbC5YdL.png)
 ---
@@ -104,7 +105,7 @@ flavor: { get_param: instance_type }
 ```
 
 
-
+### Tacker Documentation
 |  | |
 | -------- | -------- |
 |Installation Guide |https://docs.openstack.org/tacker/latest/user/index.html |
@@ -135,13 +136,162 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 ---
 **<center>OSM Workflow</center>**
 ![](https://i.imgur.com/4nSBWjU.png)
+---
+
+## Opensource MANO components
+
+```
+     __________                                                              ________
+    |          |                                                            |        |
+    | light-ui |OSM_SERVER               _______                            |keystone|
+    | :80      |----------------------> |       |-------------------------> |:5000   |
+    |__________|                        | nbi   |                           |________|
+                     OSMNBI_STORAGE_PATH| :9999 |OSMNBI_DATABASE_HOST        _______ 
+    .............. <--------------------|_______|-------------------------> |       |
+    . volume:    .                                                          |       |
+    . osm_osm_   .                                                          | mongo |
+    . packages   .   OSMLCM_STORAGE_PATH _______ OSMLCM_DATABASE_HOST       | :27017|
+    .............. <--------------------|       |-------------------------> |_______|
+                                        | lcm   |
+    **************       OSMLCM_VCA_HOST|       |OSMLCM_RO_HOST
+    * lxd: juju  * <--------------------|_______|--------------|
+    * controller *                                             |
+    **************                       _______               |             _______
+                                        |       | <-------------            |       |
+                                        | ro    |                           | mysql |  
+                                        | :9090 |RO_DB_HOST                 | :3306 |
+                                        |_______|-------------------------> |_______|
+
+     _______     _______                 _______                             _________
+    |       |   |       |               |       |                           |         |
+    | mon   |   | pm    |               | kafka |KAFKA_ZOOKEEPER_CONNECT    |zookeeper|  
+    | :8662 |   |       |               | :9092 |-------------------------> | :2181   |
+    |_______|   |_______|               |_______|                           |_________|
+```
+| COMPONENTS | DESCRIPTION |
+| -------- | ------------- |
+| kafka | Provides a Kafka bus used for OSM communication. This module relies on zookeeper. |
+| zookeeper | Used by kafka. |
+|nbi | North Bound Interface of OSM. Restful server that follows ETSI SOL005 interface. Relies on mongo database and kafka bus. For authentication it can optionally uses keystone. |
+| keystone | Used for NBI authentication and RBAC. It stores the users, projects and role permissions. It relies on mysql. |
+| lcm | Provides the Live Cycle Management. It uses ro for resource orchestration and juju for configuration. It relies also on mongo. |
+| ro | Makes the Resource Orchestration, or VIM deployment. Relies on mysql. |
+| light-ui | Web user interface. It communicates with nbi. |
+| mon | Performs OSM monitoring. Relies on mongo and mysql. |
+| mongo | Common non relational database for OSM modules. |
+| mysql | Relational database server used for ro, keystone, mon and pol. |
+| pol | Policy Manager for OSM. |
+| prometheus | for monitoring. |
+
+### Resource Orchestrator module - RO 
+
+The RO component is capable of deploying networking services over OpenStack, VMware, and OpenVIM.
+
+<p>NFVO engine itself is embedded in RO module and essentially is split between nfvo.py, nfvo_db.py and vim_thread.py. Regarding the first two, changes were made to process the new VNFFG element of a Network Service Descriptor (NSD), provided via YAML file, and store its information in internal database tables, also mapping to existing descriptors such as VNFDs.</p>
+<p>An HTTP server runs automatically and interacts with the Resource Orchestrator Engine to provide/request data. 
+Regarding vim_thread.py, changes were made so that, when a Network Scenario Instance is created, it is able to process existing NSDs that include a VNFFGD. 
+<p>This module’s role is to call the VIM Plugin component and to support VNFFGD, special calls have to be made to the VIM Plugin. Essentially, the upper part of Resource Orchestrator Engine will insert tasks in the VIM thread, so that it can call VIM connector’s normalized interface for the creation of networks, functions, service function chains (the eventual transformation of a VNFFG), etc</p>
+
+
+- The API Service & Utilities endpoint provides the interface into the RO (for the LCM to consume) and provides a number of utilities for internal to RO consumption.
+- The Resource Orchestration Engine manages and coordinates resource allocations across multiple geo-distributed VIMs and multiple SDN controllers.
+- The VIM and SDN Plugins connect the Resource Orchestration Engine with the specific interface provided by the VIMs and SDN controllers.
+
+
+Directory Organization
+The code organized into the following high level directories:
+
+* RO/ main RO server engine
+* RO/osm_ro/ contains the RO server code files
+* RO/test/ contains scripts and code for testing
+* RO/database_utils/ contains scripts for database creation, dumping and migration
+* RO/scripts/ general scripts, as installation, execution, reporting
+* RO/scenarios/ examples and templates of network scenario descriptors
+* RO/vnfs/ examples and templates of VNF descriptors
+* RO-client/ contains the own RO client CLI
+* RO-SDN-*/ contains the SDN plugins
+* RO-VIM-*/ contains the VIM plugins
+
+### RO Architecture
+
+![](https://osm.etsi.org/docs/developer-guide/_images/400px-OpenmanoArchitecture.png)
+
+**RO Server modules**
+The RO module contains the following modules:
+
+* openmanod.py is the main program. It reads the configuration file (openmanod.cfg) and execute httpserver and wait for the end
+* httpserver.py is a thread that implements the northbound API interface, uses python bottle module. Calls main engine methods to perform the tasks
+* nfvo.py is the main engine, implementing all the methods for the creation, deletion and management of vnfs, scenarios and instances. Operations against a VIM are asynchornous. ACTIONs to be done are stored at database before returning ok to the client
+* nfvo_db.py is the module in charge of database operations. Uses base db_base.py. Database is managed with MySQLdb python library
+* openmano_schemas.py is a dictionary schemas used to validate API request and response content using jsonschema library
+* vim_thread.py There is a thread per VIM and credentials. It performs basic tasks of creating/deleting VM, networks, flavors, etc. In addition it refreshes the VM and network status. It calls vimconn.py methods
+* vimconn.py is the base class for the VIM plugin. It contains the definition of the methods to be implemented. The inherited - console_proxy_thread.py is a thread that implements a TCP/IP proxy for the console access to ## a VIM.
+
+**RO Client modules**
+Other modules not part of the server are:
+
+roclient.py is a CLI client
+
+**ACTIONS and TASKS**
+
+ACTIONS: A group of tasks performed against a a concrete instance-scenarios (NS record). The creation and deletion of the instance-scenario itself is an action. As it is asynchonous, NBI returns an “Action_id” that can be used to check the status. For each action, nfvo.py generates individual tasks for the related VIMs. Tasks are both stored at database and sent to the related vim_thread.py. A task has a concrete relation with a VIM, e.g. create/delete a VM, a network, look for a flavor network
+
+### Lifecycle Module - LCM
+
+The most important role of any MANO framework is the life-cycle management of every NS.From instantiation to termination, the MANO executes all tasks related to placement calculations, healing, reconfiguration, etc . In OSM, these actions are performed by the RO module. 
+
+In particular, regarding the run-time reconfiguration of the VNFs the RO module in collaboration with the Lightweight Management uses Juju charms to manage the complete life cycle of the VNF, including software installation, configuration, clustering, and scaling.
+
+There are two types of charms; proxy and machine:
+* Proxy charms are operating remotely from a VNF (running on a VM or physical device) using SSH.
+* Machine charms are written to inside the VNF and handles the complete life cycle of the VNF from installation to removal
+
+
+
+![](https://i.imgur.com/6VudQmW.png)
+* A VNF package is instantiated via the LCM.
+* The LCM requests a virtual machine from the RO.
+* The RO instantiates a VM with your VNF image.
+* The LCM instructs N2VC, using the VCA, to deploy a VNF proxy charm, and tells it how to access your VM (hostname, user name, and password).
+
+https://osm.etsi.org/wikipub/index.php/Creating_your_VNF_Charm
+### Northbound Interface - NBI module
+
+The Northbound interface is based on REST and it allows performing actions over the following entities:
+
+* Tenant: Intended to create groups of resources. In this version no security mechanisms are implemented.
+* Datacenters: Represents the VIM information stored by openmano.
+* VIMs: used to perform an action over a datacenter (specific pool of resources)
+* VNFs: SW-based network function, composed of one or several VM that can be deployed on an NFV datacenter.
+* Scenarios: topologies of VNFs and their interconnections.
+* Instances: Each one of the Scenarios deployed in a datacenter.
+
+**Swagger Schema for NBI** 
+```
+https://forge.etsi.org/swagger/ui/?url=https%3A%2F%2Fosm.etsi.org%2Fgitweb%2F%3Fp%3Dosm%2FSOL005.git%3Ba%3Dblob_plain%3Bf%3Dosm-openapi.yaml%3Bhb%3DHEAD
+```
+### OSM Client
+
+The RO code contains a python CLI (openmano) that allows friendly command execution. This CLI client can run on a separate machine where openmano server is running. openmano config indicates where the ## server is (by default localhost).
+```
+https://osm.etsi.org/wikipub/index.php/OSM_client
+```
+
+### VNF Configuration and Abstraction (VCA)
+
+VCA module performs the initial VNF configuration using Juju Charms. Considering this purpose, the VCA module can be considered as a generic VNFM with a limited feature set.
+
+- Juju Controller/Client --> interact with Proxy Charms
+- LXD Containers (Host the proxy Charms)
+- Proxy Charms
+
+
+### OSM Documentation
 
 :::success
-
 * https://osm.etsi.org/docs/user-guide/02-osm-architecture-and-functions.html 
 * https://osm-download.etsi.org/ftp/Documentation/201902-osm-scope-white-paper/#!00-introduction.md 
 * https://osm.etsi.org/docs/developer-guide/02-developer-how-to.html 
-
 :::
 
 
@@ -153,11 +303,36 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 
 ## 2.3  Openbaton
 
+Open Baton is an opensource project led by Fraunhofer Focus and TU Berlin.Open Baton is also based on ETSI NFV reference architectural framework and MANO specifications. It provides an NFVO building block, a Generic VNFM, a component for EMS, a dashboard, supports multiple OpenStack VIM and provides a plug-in mechanism for other VIM. It also supports specific VNFM.
+
+
+**<center>Architecture</center>**
 ![](https://i.imgur.com/p9bJZUC.png)
-
+---
 ![](https://i.imgur.com/DW3Cp2T.png)
+---
+Open Baton is implemented in java with the spring.io framework, it supports VNF Package defined with json to include the VNF descriptors, scripts and metadata, and a link to the image. It supports TOSCA templates that are combined with scripts and metadata into a CSAR (Cloud Service Archive) packages. The NFVO reads these packages and process the data, and returns a json translation of the NSD. The NFVO is using RabbitMQ to talk AMQP protocol to call the VNFM. The Generic EMS will be invoked to configure the new instance. Then the NFVO uses Zabbix to monitor the VNF.
 
 
+Lifecycle operations supported are: 
+
+- instantiate 
+- configure 
+- start 
+- stop
+- terminate
+
+---
+![](https://i.imgur.com/DKkBM2L.png)
+
+---
+### OpenBaton Documentation
+
+|  |  |
+| -------- | -------- |
+|Installation Guide | https://openbaton.github.io/documentation/nfvo-installation-deb/ |
+|User Guide for VNF’s | https://openbaton.github.io/documentation/vnf-package-onboard/ |
+|Source Code |https://github.com/openbaton/bootstrap/|
 
 
 ## 2.4  ONAP 
@@ -190,7 +365,8 @@ OSM provides an integrated building block that combines NFVO and  Generic VNFM i
 ## 2.6 MANO Selection criteria
 As part of the MANO selection process, we must consider a number of important factors:
 
-* Common criteria
+* NFVO/MEO
+* ViM Support 
 * Product or project maturity
 * Hardware concerns
 * Additional  features 
@@ -331,24 +507,26 @@ The goal of OpenStack-Helm is to provide a collection of Helm charts that simply
 
 **Manually**
 
-- KubeADM
-- Kurl
-- kubeSpray
-- Bootkube
-- Kubernetes Operations (kops)
-- Canonical JuJu ( charmed K8s with openstack)
-- Openstack Magnum on top of Openstack 
+- [KubeADM](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
+- [Kurl](https://kurl.sh/)
+- [kubeSpray](https://kubespray.io/#/)
+- [Bootkube](https://github.com/kubernetes-sigs/bootkube)
+- [Kubernetes Operations (kops)](https://kops.sigs.k8s.io/)
+- [Canonical JAAS (charmed K8s with openstack)]()
+- [Openstack Magnum (k8son top of Openstack)](https://wiki.openstack.org/wiki/Magnum) 
 
 
 
 
 :::success
-Kops,kubeadm can deploy the oposite as well--> k8s on Openstack
-*Example with kubeadmin*
+Kops,kubeadm can deploy the oposite as well --> k8s on Openstack:
+
+
+- *Example with kubeadmin*
 ```
 https://kubernetes.io/blog/2020/02/07/deploying-external-openstack-cloud-provider-with-kubeadm/
 ```
-*Example with kops*
+- *Example with kops*
 ```
 https://kops.sigs.k8s.io/getting_started/openstack/
 ```
@@ -522,10 +700,10 @@ Cases where the management network must be IPv6:
 
 StarlingX supports the scalable deployment models from small to large:
 
-- All-in-one Simplex: the Simplex configuration runs all edge cloud functions (controller, compute, and storage) on one physical server. This configuration is intended for very small Edge sites that do not require high availability.
-- All-in-one Duplex: the Duplex configuration runs all edge cloud functions (controller, compute, and storage) on one physical server. There is also a second physical server in the system for active / standby based high availability for all platform and application services.
-- Standard with Controller Storage: this configuration allows for 2x controller physical servers to provide storage for the edge cloud. High availability services run across the controller nodes in either active/active or active/standby mode. The configuration also allows between one and 99 compute physical servers to run application workloads. This configuration works best for edge clouds with smaller storage needs.
-- Standard with Dedicated Storage: this configuration has dedicated storage servers in addition to the controller and compute physical servers. This configuration is best for edge clouds requiring larger amounts of storage capacity.
+- **All-in-one Simplex**: the Simplex configuration runs all edge cloud functions (controller, compute, and storage) on one physical server. This configuration is intended for very small Edge sites that do not require high availability.
+- **All-in-one Duplex**: the Duplex configuration runs all edge cloud functions (controller, compute, and storage) on one physical server. There is also a second physical server in the system for active / standby based high availability for all platform and application services.
+- **Standard with Controller Storage**: this configuration allows for 2x controller physical servers to provide storage for the edge cloud. High availability services run across the controller nodes in either active/active or active/standby mode. The configuration also allows between one and 99 compute physical servers to run application workloads. This configuration works best for edge clouds with smaller storage needs.
+- **Standard with Dedicated Storage**: this configuration has dedicated storage servers in addition to the controller and compute physical servers. This configuration is best for edge clouds requiring larger amounts of storage capacity.
 
 
 
@@ -553,6 +731,13 @@ Release 4.0 is Kubernetes 1.18 certified distribution
 | Primary disk | 500 GB SSD or NVMe (see Configure NVMe Drive as Primary Disk) | 120 GB (Minimum 10k RPM) |
 | Additional disks | 1 or more 500 GB (min. 10K RPM) for Ceph OSD | Recommended, but not required: 1 or more SSDs or NVMe drives for Ceph journals (min. 1024 MiB per OSD journal) | For OpenStack, recommend 1 or more 500 GB (min. 10K RPM) for VM local ephemeral storage |
 | Minimum network ports | Mgmt/Cluster: 1x10GE, OAM: 1x1GE | Mgmt/Cluster: 1x10GE, Data: 1 or more x 10GE|
+
+### StarlingX Documentation
+|  |  |
+| -------- | -------- |
+|Source | https://opendev.org/starlingx |
+|Documentation | https://docs.starlingx.io/deploy_install_guides/index.html |
+|Overview | https://docs.starlingx.io/introduction/index.html |
 
 :::danger
 Problem: StarlingX does not deploy itself automaticaly to support additional sub-clusters?
@@ -582,11 +767,13 @@ A very simple example of a service chain would be one that forces all traffic fr
 
 A more complex example is an ordered series of functions, each implemented in multiple VMs, such that traffic must flow through one VM at each hop in the chain but the network uses a hashing algorithm to distribute different flows across multiple VMs at each hop.
 
-* Source: https://opendev.org/openstack/networking-sfc
-* Documentation: https://docs.openstack.org/networking-sfc/latest
-* Overview: https://launchpad.net/networking-sfc
 
 
+|  |  |
+| -------- | -------- |
+|Source | https://opendev.org/openstack/networking-sfc |
+|Documentation | https://docs.openstack.org/networking-sfc/latest |
+|Overview | https://launchpad.net/networking-sfc |
 
 
 # Appendix
@@ -663,35 +850,6 @@ A more complex example is an ordered series of functions, each implemented in mu
 
 ## Opensource MANO components
 
-```
-     __________                                                              ________
-    |          |                                                            |        |
-    | light-ui |OSM_SERVER               _______                            |keystone|
-    | :80      |----------------------> |       |-------------------------> |:5000   |
-    |__________|                        | nbi   |                           |________|
-                     OSMNBI_STORAGE_PATH| :9999 |OSMNBI_DATABASE_HOST        _______ 
-    .............. <--------------------|_______|-------------------------> |       |
-    . volume:    .                                                          |       |
-    . osm_osm_   .                                                          | mongo |
-    . packages   .   OSMLCM_STORAGE_PATH _______ OSMLCM_DATABASE_HOST       | :27017|
-    .............. <--------------------|       |-------------------------> |_______|
-                                        | lcm   |
-    **************       OSMLCM_VCA_HOST|       |OSMLCM_RO_HOST
-    * lxd: juju  * <--------------------|_______|--------------|
-    * controller *                                             |
-    **************                       _______               |             _______
-                                        |       | <-------------            |       |
-                                        | ro    |                           | mysql |  
-                                        | :9090 |RO_DB_HOST                 | :3306 |
-                                        |_______|-------------------------> |_______|
-
-     _______     _______                 _______                             _________
-    |       |   |       |               |       |                           |         |
-    | mon   |   | pm    |               | kafka |KAFKA_ZOOKEEPER_CONNECT    |zookeeper|  
-    | :8662 |   |       |               | :9092 |-------------------------> | :2181   |
-    |_______|   |_______|               |_______|                           |_________|
-```
-
 | COMPONENTS | DESCRIPTION |
 | -------- | ------------- |
 | kafka | Provides a Kafka bus used for OSM communication. This module relies on zookeeper. |
@@ -706,108 +864,6 @@ A more complex example is an ordered series of functions, each implemented in mu
 | mysql | Relational database server used for ro, keystone, mon and pol. |
 | pol | Policy Manager for OSM. |
 | prometheus | for monitoring. |
-
-### Resource Orchestrator module - RO 
-
-The RO component is capable of deploying networking services over OpenStack, VMware, and OpenVIM.
-
-<p>NFVO engine itself is embedded in RO module and essentially is split between nfvo.py, nfvo_db.py and vim_thread.py. Regarding the first two, changes were made to process the new VNFFG element of a Network Service Descriptor (NSD), provided via YAML file, and store its information in internal database tables, also mapping to existing descriptors such as VNFDs.</p>
-<p>An HTTP server runs automatically and interacts with the Resource Orchestrator Engine to provide/request data. 
-Regarding vim_thread.py, changes were made so that, when a Network Scenario Instance is created, it is able to process existing NSDs that include a VNFFGD. 
-<p>This module’s role is to call the VIM Plugin component and to support VNFFGD, special calls have to be made to the VIM Plugin. Essentially, the upper part of Resource Orchestrator Engine will insert tasks in the VIM thread, so that it can call VIM connector’s normalized interface for the creation of networks, functions, service function chains (the eventual transformation of a VNFFG), etc</p>
-
-
-- The API Service & Utilities endpoint provides the interface into the RO (for the LCM to consume) and provides a number of utilities for internal to RO consumption.
-- The Resource Orchestration Engine manages and coordinates resource allocations across multiple geo-distributed VIMs and multiple SDN controllers.
-- The VIM and SDN Plugins connect the Resource Orchestration Engine with the specific interface provided by the VIMs and SDN controllers.
-
-
-Directory Organization
-The code organized into the following high level directories:
-
-* RO/ main RO server engine
-* RO/osm_ro/ contains the RO server code files
-* RO/test/ contains scripts and code for testing
-* RO/database_utils/ contains scripts for database creation, dumping and migration
-* RO/scripts/ general scripts, as installation, execution, reporting
-* RO/scenarios/ examples and templates of network scenario descriptors
-* RO/vnfs/ examples and templates of VNF descriptors
-* RO-client/ contains the own RO client CLI
-* RO-SDN-*/ contains the SDN plugins
-* RO-VIM-*/ contains the VIM plugins
-
-### RO Architecture
-
-![](https://osm.etsi.org/docs/developer-guide/_images/400px-OpenmanoArchitecture.png)
-
-**RO Server modules**
-The RO module contains the following modules:
-
-* openmanod.py is the main program. It reads the configuration file (openmanod.cfg) and execute httpserver and wait for the end
-* httpserver.py is a thread that implements the northbound API interface, uses python bottle module. Calls main engine methods to perform the tasks
-* nfvo.py is the main engine, implementing all the methods for the creation, deletion and management of vnfs, scenarios and instances. Operations against a VIM are asynchornous. ACTIONs to be done are stored at database before returning ok to the client
-* nfvo_db.py is the module in charge of database operations. Uses base db_base.py. Database is managed with MySQLdb python library
-* openmano_schemas.py is a dictionary schemas used to validate API request and response content using jsonschema library
-* vim_thread.py There is a thread per VIM and credentials. It performs basic tasks of creating/deleting VM, networks, flavors, etc. In addition it refreshes the VM and network status. It calls vimconn.py methods
-* vimconn.py is the base class for the VIM plugin. It contains the definition of the methods to be implemented. The inherited - console_proxy_thread.py is a thread that implements a TCP/IP proxy for the console access to ## a VIM.
-
-**RO Client modules**
-Other modules not part of the server are:
-
-roclient.py is a CLI client
-
-**ACTIONS and TASKS**
-
-ACTIONS: A group of tasks performed against a a concrete instance-scenarios (NS record). The creation and deletion of the instance-scenario itself is an action. As it is asynchonous, NBI returns an “Action_id” that can be used to check the status. For each action, nfvo.py generates individual tasks for the related VIMs. Tasks are both stored at database and sent to the related vim_thread.py. A task has a concrete relation with a VIM, e.g. create/delete a VM, a network, look for a flavor network
-
-### Lifecycle Module - LCM
-
-The most important role of any MANO framework is the life-cycle management of every NS.From instantiation to termination, the MANO executes all tasks related to placement calculations, healing, reconfiguration, etc . In OSM, these actions are performed by the RO module. 
-
-In particular, regarding the run-time reconfiguration of the VNFs the RO module in collaboration with the Lightweight Management uses Juju charms to manage the complete life cycle of the VNF, including software installation, configuration, clustering, and scaling.
-
-There are two types of charms; proxy and machine:
-* Proxy charms are operating remotely from a VNF (running on a VM or physical device) using SSH.
-* Machine charms are written to inside the VNF and handles the complete life cycle of the VNF from installation to removal
-
-
-
-![](https://i.imgur.com/6VudQmW.png)
-* A VNF package is instantiated via the LCM.
-* The LCM requests a virtual machine from the RO.
-* The RO instantiates a VM with your VNF image.
-* The LCM instructs N2VC, using the VCA, to deploy a VNF proxy charm, and tells it how to access your VM (hostname, user name, and password).
-
-https://osm.etsi.org/wikipub/index.php/Creating_your_VNF_Charm
-### Northbound Interface - NBI module
-
-The Northbound interface is based on REST and it allows performing actions over the following entities:
-
-* Tenant: Intended to create groups of resources. In this version no security mechanisms are implemented.
-* Datacenters: Represents the VIM information stored by openmano.
-* VIMs: used to perform an action over a datacenter (specific pool of resources)
-* VNFs: SW-based network function, composed of one or several VM that can be deployed on an NFV datacenter.
-* Scenarios: topologies of VNFs and their interconnections.
-* Instances: Each one of the Scenarios deployed in a datacenter.
-
-**Swagger Schema for NBI** 
-```
-https://forge.etsi.org/swagger/ui/?url=https%3A%2F%2Fosm.etsi.org%2Fgitweb%2F%3Fp%3Dosm%2FSOL005.git%3Ba%3Dblob_plain%3Bf%3Dosm-openapi.yaml%3Bhb%3DHEAD
-```
-### OSM Client
-
-The RO code contains a python CLI (openmano) that allows friendly command execution. This CLI client can run on a separate machine where openmano server is running. openmano config indicates where the ## server is (by default localhost).
-```
-https://osm.etsi.org/wikipub/index.php/OSM_client
-```
-
-### VNF Configuration and Abstraction (VCA)
-
-VCA module performs the initial VNF configuration using Juju Charms. Considering this purpose, the VCA module can be considered as a generic VNFM with a limited feature set.
-
-- Juju Controller/Client --> interact with Proxy Charms
-- LXD Containers (Host the proxy Charms)
-- Proxy Charms
 
 
 ### Opensource MANO Container List
@@ -872,24 +928,33 @@ If you deploy applications to Kubernetes, Helm makes it incredibly easy to:
 
 An OASIS standard, TOSCA (Topology and Orchestration Specification for Cloud Applications) aims to standardize how to describe software application and everything that is needed to run that application in cloud environments. 
 
-TOSCA is designed to facilitate the ‘portability’ and ‘lifecycle management’ of cloud services. TOSCA supports many cloud orchestration tools such as OpenStack Heat, Cloudify
+TOSCA is designed to facilitate the ‘portability’ and ‘lifecycle management’ of cloud services. TOSCA supports many cloud orchestration tools such as Tacker,OpenStack Heat, Cloudify
 
 
 
 
 
-# Additional Tooling & Projects
+# Additional Tooling & Projects for Kubernetes
 
 **Networking** 
-* https://networkservicemesh.io/
-* https://submariner.io/
+* [NetworkServiceMesh](https://networkservicemesh.io/)
+* [Submariner](https://submariner.io/)
 
 **Provisioning**
-
+* OpennWhisk
+* Crossplane
+* Helm
 
 **Orchastrators**
 * Cloudify
+* Sonata
+* Force - Fog Orchstrator
 
+**Service Mesh**
+* Ambassador
+* Kong
+* Argo
+ 
 **Security**
 * https://github.com/IBM/portieris (Container Image Signature Validation) - to be featured in starlingx 
 
@@ -902,8 +967,9 @@ TOSCA is designed to facilitate the ‘portability’ and ‘lifecycle managemen
 ## Canonical Specific Tools
 
 **Proxy charms and VNF development**
-* https://github.com/5GinFIRE/ffmpeg_transcoder_vnf
 * https://osm.etsi.org/wikipub/index.php/Creating_your_VNF_Charm
+* https://juju.is/docs/sdk
+* https://github.com/5GinFIRE/ffmpeg_transcoder_vnf
 
 
 **MAAS Provisioning**
