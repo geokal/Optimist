@@ -28,6 +28,53 @@ An open application framework sponsored by ETSI to support the development of se
 **MEC Platform Manager (MEPM)**: is in charge of MEA instances’ life cycle, which includes automated provisioning, monitoring, configuration, healing, and scaling. They are managed by several modules as follows. The automated provisioning functionality is in charge of receiving and dispatching users’ requests for MEC applications. MEM provides an API for users to send their requests on MEC application’s resources (CPU, memory, network, etc.). Then, the module translates those requests into a VIM’s understandable format. Finally, MEM converts requests into VIM’s function calls to actually instantiate MEA instances.
 
 
+**ME App (AppD)**
+MEC App: Inspired by VNFd, an application Descriptor (AppD) is a part of application package, and describes application requirements and rules
+required by application provider
+
+
++ **Application Instantiation Process**
+
+![](https://i.imgur.com/Zh8uogm.png)
+
+    Steps
+
+> 1) The OSS sends an instantiate application request to the Mobile Edge Orchestrator.
+> 2) Mobile Edge Orchestrator checks the application instance configuration data, and authorizes the request. The
+> Mobile Mdge Orchestrator selects the mobile edge host (and corresponding Mobile Edge Platform Manager),
+> and sends an instantiate application request to the Mobile Edge Platform Manager.
+> 3) The Mobile Edge Platform Manager sends a resource allocation request to the virtualization infrastructure
+> manager, with the requested resource including compute, storage, and network resources. The mobile edge
+> platform will include application image information (e.g. a link to the image or an ID of the application image)
+> in the request.
+> 4) The virtualization infrastructure manager allocates the resources according to the request of the Mobile Edge
+> Platform Manager. And if the application image is available, the virtualization infrastructure manager loads the
+> virtual machine with the application image, and runs the VM and the application instance. The virtualization
+> infrastructure manager sends resource allocation response to the Mobile Edge Platform Manager.
+> 5) The Mobile Edge Platform Manager sends configuration request to the mobile edge platform. In this message,
+> the Mobile Edge Platform Manager includes the traffic rules to be configured, DNS rules to be configured, the
+> required and optional services, and services produced by the application instance, etc.
+> 6) The mobile edge platform configures the Traffic rules and DNS rules for the application instance. The mobile
+edge platform needs to wait until the application instance runs normally (e.g. the application instance state
+turns into the running state) to activate the traffic and DNS rules. For such purpose, the mobile edge platform
+needs to communicate with the application instance regarding to its state via Mp1 interface if it is supported by
+the mobile edge application. After the application instance runs normally, the mobile edge platform provides
+the available service information to the application. The details of how the mobile edge application instance
+interacts with mobile edge platform and how the mobile edge platform handles services can be found in ETSI
+GS MEC 011 
+>
+https://www.etsi.org/deliver/etsi_gs/MEC/001_099/01002/01.01.01_60/gs_MEC01002v010101p.pdf
+
+**ViM (Virtual infrastructure manager)**
+
+**Mobile edge platform (and host)**
+
+# 1.2 Mapping to NFV architecture
+
+![](https://i.imgur.com/Dj74vZp.png)
+
+
+
 # 2. ETSI NFV Compliant MANO Orchestrators and possible candidates for ETSI MEC
 
 ## 2.1 TACKER 
@@ -54,6 +101,10 @@ Tacker is an OpenStack project implementing a generic VNFM and NFVO of the ETSI 
 https://docs.openstack.org/tacker/latest/user/architecture.html 
 https://wiki.openstack.org/wiki/Tacker
 
+:::
+
+:::success
+[Tacker VNF example](https://networkop.co.uk/blog/2017/11/23/os-nfv-mano/)
 :::
 
 
@@ -313,6 +364,7 @@ Open Baton is an opensource project led by Fraunhofer Focus and TU Berlin.Open B
 ---
 Open Baton is implemented in java with the spring.io framework, it supports VNF Package defined with json to include the VNF descriptors, scripts and metadata, and a link to the image. It supports TOSCA templates that are combined with scripts and metadata into a CSAR (Cloud Service Archive) packages. The NFVO reads these packages and process the data, and returns a json translation of the NSD. The NFVO is using RabbitMQ to talk AMQP protocol to call the VNFM. The Generic EMS will be invoked to configure the new instance. Then the NFVO uses Zabbix to monitor the VNF.
 
+A CSAR is a zip archive that contains at least two directories: TOSCA-Metadata and Definitions. The TOSCA-Metadata directory contains information that describes the content of the CSAR and is referred to as the TOSCA metafile. The Definitions directory contains one or more TOSCA Definitions documents. These Definitions documents contain definitions of the cloud application to be deployed during CSAR processing. 
 
 Lifecycle operations supported are: 
 
@@ -361,6 +413,10 @@ Lifecycle operations supported are:
 |Yang | | | | y |
 |Dashboard | y | y | y | y
 |Service Orchestrator | | LCM  | |
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7412274/table/sensors-20-03852-t003/?report=objectonly
+
+https://sdn.ieee.org/home/sitemap/22-newsletter/july-2016/59-opensource-mano
 
 ## 2.6 MANO Selection criteria
 As part of the MANO selection process, we must consider a number of important factors:
@@ -539,10 +595,10 @@ Problem: MANO's does not instantiate K8s & VIM clusters. You have to have it bef
 
 ## Automating the Provisioning of Kubernetes (Clusters as a Service)
 
-- Airship ( KubeADM with ClusterAPI)
+- Airship (KubeADM with ClusterAPI)
 - Gardener (ClusterAPI)
-- Rancher ( need research)
-- MAAS ( Metal as a Service) + Juju charmed K8s
+- Rancher (needs research)
+- MAAS (Metal as a Service) + Juju charmed K8s
 
 :::success
 Airship and Rancher can deploy Openstack Helm and K8s on demand
